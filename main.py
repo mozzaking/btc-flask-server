@@ -1,4 +1,4 @@
-# Flask 디버깅용 서버 코드 - 파일 저장 버전
+# 수정된 Flask 서버 코드 - positions.json 없으면 자동 생성 포함
 
 from flask import Flask, request, jsonify
 from datetime import datetime
@@ -14,7 +14,6 @@ app = Flask(__name__)
 # === 설정 ===
 LOG_PATH = "./trade_log.csv"
 POSITION_PATH = "./positions.json"
-SAVE_LOG_PATH = "./log.txt"  # 🔥 추가: 수신 기록 저장용
 BACKUP_DIR = "./backup_logs"
 os.makedirs(BACKUP_DIR, exist_ok=True)
 
@@ -26,16 +25,20 @@ MAX_POSITIONS = 5
 INITIAL_BALANCE = 1000
 POSITION_RATIO = 0.19
 
+# === positions.json 초기화 ===
+if not os.path.exists(POSITION_PATH):
+    with open(POSITION_PATH, 'w') as f:
+        json.dump([], f)
+    print("[초기화] positions.json 파일 생성 완료")
+
 # === 포지션 불러오기 및 저장 ===
 def load_positions():
-    if os.path.exists(POSITION_PATH):
-        with open(POSITION_PATH, 'r') as f:
-            try:
-                data = json.load(f)
-                return data if isinstance(data, list) else []
-            except:
-                return []
-    return []
+    with open(POSITION_PATH, 'r') as f:
+        try:
+            data = json.load(f)
+            return data if isinstance(data, list) else []
+        except:
+            return []
 
 def save_positions(positions):
     with open(POSITION_PATH, 'w') as f:
@@ -47,30 +50,26 @@ positions = load_positions()
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
-        # ✨ request가 json이 아닐 경우도 대비
         if request.is_json:
             data = request.get_json()
         else:
             data = json.loads(request.data.decode("utf-8"))
 
-        # 🔥 파일로 수신 데이터 저장
-        with open(SAVE_LOG_PATH, "a") as f:
-            f.write(f"\n[{datetime.now()}] 수신 데이터: {json.dumps(data)}\n")
+        print(f"[수신 데이터] {data}")
 
         if not data:
+            print("[경고] 수신 데이터 없음")
             return jsonify({"status": "no data"}), 400
 
         action = data.get("action")
         price = data.get("price")
 
-        if action not in ["long", "short"]:
-            with open(SAVE_LOG_PATH, "a") as f:
-                f.write(f"[{datetime.now()}] 경고: 잘못된 action 수신\n")
-            return jsonify({"status": "invalid action"}), 400
-        if price is None:
-            with open(SAVE_LOG_PATH, "a") as f:
-                f.write(f"[{datetime.now()}] 경고: price 누락\n")
-            return jsonify({"status": "invalid price"}), 400
+        print(f"[수신 Action] {action}")
+        print(f"[수신 Price] {price}")
+
+        if action not in ["long", "short"] or price is None:
+            print("[경고] action 또는 price 이상함")
+            return jsonify({"status": "invalid data"}), 400
 
         price = float(price)
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -78,8 +77,7 @@ def webhook():
         open_positions = [p for p in positions if p.get("status") == "open"]
 
         if len(open_positions) >= MAX_POSITIONS:
-            with open(SAVE_LOG_PATH, "a") as f:
-                f.write(f"[{now}] 최대 포지션 초과로 진입 무시\n")
+            print(f"[{now}] 최대 포지션 초과로 진입 무시")
             return jsonify({"status": "max positions reached"}), 200
 
         amount = INITIAL_BALANCE * POSITION_RATIO
@@ -94,15 +92,12 @@ def webhook():
             "status": "open"
         })
         save_positions(positions)
-
-        with open(SAVE_LOG_PATH, "a") as f:
-            f.write(f"[{now}] {action.upper()} 진입 기록 저장 완료 (진입가: {price}, 금액: {amount} USDT)\n")
+        print(f"[{now}] {action.upper()} 진입 기록 저장 완료 (진입가: {price}, 금액: {amount} USDT)")
 
         return jsonify({"status": "ok"}), 200
 
     except Exception as e:
-        with open(SAVE_LOG_PATH, "a") as f:
-            f.write(f"[{datetime.now()}] 오류 발생: {str(e)}\n")
+        print(f"[오류] webhook 처리 실패: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # === 현재 Bar Index 계산 ===
