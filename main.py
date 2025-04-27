@@ -1,10 +1,13 @@
-# Flask 디버깅용 서버 코드 - request.data 강제 파싱 최종 버전
+# Flask 디버깅용 서버 코드 - Render 대응 + positions.json 자동 생성 버전
 
 from flask import Flask, request, jsonify
 from datetime import datetime
 import pandas as pd
 import os
 import json
+import threading
+import time
+import requests
 
 app = Flask(__name__)
 
@@ -14,6 +17,7 @@ POSITION_PATH = "./positions.json"
 BACKUP_DIR = "./backup_logs"
 os.makedirs(BACKUP_DIR, exist_ok=True)
 
+BINANCE_API_URL = "https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=5m&limit=1"
 holdBars = 5
 forceExitBars = 50
 FEE_RATE_PER_SIDE = 0.0005
@@ -23,14 +27,16 @@ POSITION_RATIO = 0.19
 
 # === 포지션 불러오기 및 저장 ===
 def load_positions():
-    if os.path.exists(POSITION_PATH):
+    # positions.json 파일 없으면 빈 리스트로 새로 생성
+    if not os.path.exists(POSITION_PATH):
+        with open(POSITION_PATH, 'w') as f:
+            json.dump([], f)
+    try:
         with open(POSITION_PATH, 'r') as f:
-            try:
-                data = json.load(f)
-                return data if isinstance(data, list) else []
-            except:
-                return []
-    return []
+            data = json.load(f)
+            return data if isinstance(data, list) else []
+    except:
+        return []
 
 def save_positions(positions):
     with open(POSITION_PATH, 'w') as f:
@@ -42,16 +48,17 @@ positions = load_positions()
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
-        # 🔥 무조건 원시 데이터 출력
-        raw_body = request.data.decode('utf-8', errors='ignore')
-        print(f"[RAW 수신 데이터] {raw_body}")
+        # JSON 파싱 (헤더 없이 올 경우 대비)
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = json.loads(request.data.decode("utf-8"))
 
-        if not raw_body:
-            print("[경고] 수신 데이터 없음")
+        print(f"[수신 데이터] {data}")  # 디버깅용 출력
+
+        if not data:
+            print("[경고] 수신 데이터 없음 (request.json is None)")
             return jsonify({"status": "no data"}), 400
-
-        # JSON 파싱
-        data = json.loads(raw_body)
 
         action = data.get("action")
         price = data.get("price")
