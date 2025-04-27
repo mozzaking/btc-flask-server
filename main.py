@@ -1,4 +1,4 @@
-# Flask 디버깅용 서버 코드
+# Flask 디버깅용 서버 코드 - request 데이터 강제 파싱 버전
 
 from flask import Flask, request, jsonify
 from datetime import datetime
@@ -25,7 +25,7 @@ MAX_POSITIONS = 5
 INITIAL_BALANCE = 1000
 POSITION_RATIO = 0.19
 
-# === 포지션 불러오기 및 저장 ====
+# === 포지션 불러오기 및 저장 ===
 def load_positions():
     if os.path.exists(POSITION_PATH):
         with open(POSITION_PATH, 'r') as f:
@@ -46,8 +46,13 @@ positions = load_positions()
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
-        data = request.json
-        print(f"[수신 데이터] {data}")  # ← request body 전체 출력
+        # ✨ request가 json이 아닐 경우도 대비
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = json.loads(request.data.decode("utf-8"))
+
+        print(f"[수신 데이터] {data}")  # 🔥 무조건 출력
 
         if not data:
             print("[경고] 수신 데이터 없음 (request.json is None)")
