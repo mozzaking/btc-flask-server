@@ -25,7 +25,7 @@ MAX_POSITIONS = 5
 INITIAL_BALANCE = 1000
 POSITION_RATIO = 0.19
 
-# === 포지션 불러오기 및 저장 ===
+# === 포지션 불러오기 및 저장 ====
 def load_positions():
     if os.path.exists(POSITION_PATH):
         with open(POSITION_PATH, 'r') as f:
