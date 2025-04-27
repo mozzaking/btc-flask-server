@@ -9,7 +9,12 @@ import threading
 import time
 import requests
 
+from flask import Flask, request, jsonify
 app = Flask(__name__)
+app.config['JSON_AS_ASCII'] = False
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
+app.config['JSON_SORT_KEYS'] = False
+
 
 # === 설정 ===
 LOG_PATH = "./trade_log.csv"
