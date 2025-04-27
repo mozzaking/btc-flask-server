@@ -209,4 +209,5 @@ atexit.register(backup_on_exit)
 # === 서버 실행 ===
 if __name__ == "__main__":
     threading.Thread(target=monitor_market, daemon=True).start()
-    app.run(host="0.0.0.0", port=10000)
+    port = int(os.environ.get("PORT", 8080))  # Render가 지정하는 PORT 환경변수 사용
+    app.run(host="0.0.0.0", port=port)
