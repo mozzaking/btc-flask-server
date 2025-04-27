@@ -1,4 +1,4 @@
-# Flask 디버깅용 서버 코드 - Render 대응 + positions.json 자동 생성 버전
+# 디버깅 강화 버전 main.py (Render 최적화)
 
 from flask import Flask, request, jsonify
 from datetime import datetime
@@ -27,16 +27,14 @@ POSITION_RATIO = 0.19
 
 # === 포지션 불러오기 및 저장 ===
 def load_positions():
-    # positions.json 파일 없으면 빈 리스트로 새로 생성
-    if not os.path.exists(POSITION_PATH):
-        with open(POSITION_PATH, 'w') as f:
-            json.dump([], f)
-    try:
+    if os.path.exists(POSITION_PATH):
         with open(POSITION_PATH, 'r') as f:
-            data = json.load(f)
-            return data if isinstance(data, list) else []
-    except:
-        return []
+            try:
+                data = json.load(f)
+                return data if isinstance(data, list) else []
+            except:
+                return []
+    return []
 
 def save_positions(positions):
     with open(POSITION_PATH, 'w') as f:
@@ -48,29 +46,26 @@ positions = load_positions()
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
-        # JSON 파싱 (헤더 없이 올 경우 대비)
-        if request.is_json:
-            data = request.get_json()
-        else:
-            data = json.loads(request.data.decode("utf-8"))
+        raw_data = request.data.decode("utf-8")
+        print(f"[원본 수신 데이터] {raw_data}")
 
-        print(f"[수신 데이터] {data}")  # 디버깅용 출력
+        # 강제 파싱
+        try:
+            data = json.loads(raw_data)
+        except json.JSONDecodeError as e:
+            print(f"[에러] JSON 파싱 실패: {e}")
+            return jsonify({"status": "invalid json"}), 400
 
-        if not data:
-            print("[경고] 수신 데이터 없음 (request.json is None)")
-            return jsonify({"status": "no data"}), 400
+        print(f"[파싱된 데이터] {data}")
 
         action = data.get("action")
         price = data.get("price")
 
-        print(f"[수신 Action] {action}")
-        print(f"[수신 Price] {price}")
-
         if action not in ["long", "short"]:
-            print("[경고] action이 long/short가 아님")
+            print("[경고] action 필드가 long/short 아님")
             return jsonify({"status": "invalid action"}), 400
         if price is None:
-            print("[경고] price가 없음")
+            print("[경고] price 필드 없음")
             return jsonify({"status": "invalid price"}), 400
 
         price = float(price)
@@ -79,7 +74,7 @@ def webhook():
         open_positions = [p for p in positions if p.get("status") == "open"]
 
         if len(open_positions) >= MAX_POSITIONS:
-            print(f"[{now}] 최대 포지션 초과로 진입 무시")
+            print(f"[{now}] 최대 포지션 초과로 무시")
             return jsonify({"status": "max positions reached"}), 200
 
         amount = INITIAL_BALANCE * POSITION_RATIO
