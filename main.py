@@ -1,4 +1,4 @@
-# Flask 서버 코드 - 수수료 0.05% 적용 + 최대 포지션 5개 제한 + 포지션당 19% 진입 + ngrok 자동 연결 버전
+# Flask 서버 코드 - Render 배포용 버전 (ngrok 제거)
 
 from flask import Flask, request, jsonify
 from datetime import datetime
@@ -8,10 +8,9 @@ import json
 import threading
 import time
 import requests
-from pyngrok import ngrok
-import atexit, signal
+import atexit
+import signal
 
-# Flask 앱 생성
 app = Flask(__name__)
 
 # === 설정 ===
@@ -24,17 +23,10 @@ BINANCE_API_URL = "https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interv
 holdBars = 5
 forceExitBars = 50
 
-# 수수료 설정 (진입 0.05%, 청산 0.05%)
 FEE_RATE_PER_SIDE = 0.0005
 MAX_POSITIONS = 5
 INITIAL_BALANCE = 1000
 POSITION_RATIO = 0.19
-
-# === ngrok 설정 ===
-ngrok.set_auth_token("2w5sqN3mP8C2y00zqjMx2yAxliE_21pj24GA1L7wAW7Jubx3i")
-public_url = ngrok.connect(8080)
-print(f"🌎 Public URL: {public_url}")
-
 
 # === 포지션 불러오기 및 저장 ===
 def load_positions():
@@ -53,14 +45,11 @@ def load_positions():
                 return []
     return []
 
-
 def save_positions(positions):
     with open(POSITION_PATH, 'w') as f:
         json.dump(positions, f, indent=2)
 
-
 positions = load_positions()
-
 
 # === Webhook 수신 ===
 @app.route("/webhook", methods=["POST"])
@@ -93,11 +82,9 @@ def webhook():
 
     return jsonify({"status": "ok"}), 200
 
-
 # === 현재 Bar Index 계산 ===
 def get_current_bar_index():
     return int(datetime.now().timestamp() // 300)
-
 
 # === 실시간 가격 감시 ===
 def get_close_price():
@@ -107,7 +94,6 @@ def get_close_price():
     if not isinstance(data, list):
         raise Exception(f"Unexpected close price response: {data}")
     return float(data[0][4])
-
 
 def monitor_market():
     while True:
@@ -136,16 +122,10 @@ def monitor_market():
                     amount = pos["amount"]
                     hold = current_bar - entry_bar >= holdBars
                     force_exit = current_bar - entry_bar >= forceExitBars
-                    ma_exit = (close_price
-                               > ma200) if direction == "short" else (
-                                   close_price < ma200)
+                    ma_exit = (close_price > ma200) if direction == "short" else (close_price < ma200)
 
-                    profit_ratio = (
-                        entry_price - close_price
-                    ) / entry_price if direction == "short" else (
-                        close_price - entry_price) / entry_price
-                    pos["max_profit_ratio"] = max(
-                        pos.get("max_profit_ratio", 0), profit_ratio)
+                    profit_ratio = (entry_price - close_price) / entry_price if direction == "short" else (close_price - entry_price) / entry_price
+                    pos["max_profit_ratio"] = max(pos.get("max_profit_ratio", 0), profit_ratio)
 
                     if pos["max_profit_ratio"] > 0.05:
                         trail_perc = 0.05
@@ -160,18 +140,13 @@ def monitor_market():
                     else:
                         trail_perc = 0.005
 
-                    trail_trigger = profit_ratio <= (pos["max_profit_ratio"] -
-                                                     trail_perc / 2)
+                    trail_trigger = profit_ratio <= (pos["max_profit_ratio"] - trail_perc / 2)
 
-                    if (hold and ma_exit) or force_exit or (hold
-                                                            and trail_trigger):
+                    if (hold and ma_exit) or force_exit or (hold and trail_trigger):
                         pos["status"] = "closed"
-                        exit_time = datetime.now().strftime(
-                            "%Y-%m-%d %H:%M:%S")
+                        exit_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-                        gross = (entry_price -
-                                 close_price) if direction == "short" else (
-                                     close_price - entry_price)
+                        gross = (entry_price - close_price) if direction == "short" else (close_price - entry_price)
                         gross_usdt = gross / entry_price * amount
                         fee = amount * FEE_RATE_PER_SIDE * 2
                         net = gross_usdt - fee
@@ -192,25 +167,19 @@ def monitor_market():
                             "result": result
                         }
 
-                        print(
-                            f"[{exit_time}] {direction.upper()} 포지션 청산: {close_price}, 수익: {round(net, 2)} USDT"
-                        )
+                        print(f"[{exit_time}] {direction.upper()} 포지션 청산: {close_price}, 수익: {round(net, 2)} USDT")
 
                         df = pd.DataFrame([trade])
                         if not os.path.exists(LOG_PATH):
                             df.to_csv(LOG_PATH, mode='w', index=False)
                         else:
-                            df.to_csv(LOG_PATH,
-                                      mode='a',
-                                      header=False,
-                                      index=False)
+                            df.to_csv(LOG_PATH, mode='a', header=False, index=False)
 
             save_positions(positions)
         except Exception as e:
             print(f"[오류] 포지션 업데이트 실패: {e}")
 
         time.sleep(300)
-
 
 # === MA200 계산 ===
 def calculate_ma200():
@@ -227,7 +196,6 @@ def calculate_ma200():
         print(f"[오류] MA200 계산 실패: {e}")
         return 0
 
-
 # === 종료 시 백업 ===
 def backup_on_exit():
     if os.path.exists(LOG_PATH):
@@ -236,17 +204,9 @@ def backup_on_exit():
         pd.read_csv(LOG_PATH).to_csv(backup_path, index=False)
         print(f"[백업] trade_log.csv → {backup_path}")
 
-
-# === 종료 시 안전하게 처리 ===
-def handle_exit_signal(sig, frame):
-    backup_on_exit()
-    os._exit(0)
-
-
 atexit.register(backup_on_exit)
-signal.signal(signal.SIGINT, handle_exit_signal)
 
 # === 서버 실행 ===
 if __name__ == "__main__":
     threading.Thread(target=monitor_market, daemon=True).start()
-    app.run(host="0.0.0.0", port=8080)
+    app.run(host="0.0.0.0", port=10000)
