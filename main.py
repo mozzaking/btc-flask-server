@@ -1,20 +1,12 @@
-# Flask 디버깅용 서버 코드 - request 데이터 강제 파싱 버전
+# Flask 디버깅용 서버 코드 - request.data 강제 파싱 최종 버전
 
 from flask import Flask, request, jsonify
 from datetime import datetime
 import pandas as pd
 import os
 import json
-import threading
-import time
-import requests
 
-from flask import Flask, request, jsonify
 app = Flask(__name__)
-app.config['JSON_AS_ASCII'] = False
-app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
-app.config['JSON_SORT_KEYS'] = False
-
 
 # === 설정 ===
 LOG_PATH = "./trade_log.csv"
@@ -22,7 +14,6 @@ POSITION_PATH = "./positions.json"
 BACKUP_DIR = "./backup_logs"
 os.makedirs(BACKUP_DIR, exist_ok=True)
 
-BINANCE_API_URL = "https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=5m&limit=1"
 holdBars = 5
 forceExitBars = 50
 FEE_RATE_PER_SIDE = 0.0005
@@ -51,17 +42,16 @@ positions = load_positions()
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
-        # ✨ request가 json이 아닐 경우도 대비
-        if request.is_json:
-            data = request.get_json()
-        else:
-            data = json.loads(request.data.decode("utf-8"))
+        # 🔥 무조건 원시 데이터 출력
+        raw_body = request.data.decode('utf-8', errors='ignore')
+        print(f"[RAW 수신 데이터] {raw_body}")
 
-        print(f"[수신 데이터] {data}")  # 🔥 무조건 출력
-
-        if not data:
-            print("[경고] 수신 데이터 없음 (request.json is None)")
+        if not raw_body:
+            print("[경고] 수신 데이터 없음")
             return jsonify({"status": "no data"}), 400
+
+        # JSON 파싱
+        data = json.loads(raw_body)
 
         action = data.get("action")
         price = data.get("price")
