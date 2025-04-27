@@ -1,4 +1,4 @@
-# Flask 서버 코드 - Render 배포용 버전 (ngrok 제거)
+# Flask 서버 코드 - 디버깅용 (Webhook 수신 데이터 출력 포함)
 
 from flask import Flask, request, jsonify
 from datetime import datetime
@@ -8,9 +8,9 @@ import json
 import threading
 import time
 import requests
-import atexit
-import signal
+import atexit, signal
 
+# Flask 앱 생성
 app = Flask(__name__)
 
 # === 설정 ===
@@ -23,6 +23,7 @@ BINANCE_API_URL = "https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interv
 holdBars = 5
 forceExitBars = 50
 
+# 수수료 설정
 FEE_RATE_PER_SIDE = 0.0005
 MAX_POSITIONS = 5
 INITIAL_BALANCE = 1000
@@ -55,30 +56,46 @@ positions = load_positions()
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.json
+    print(f"[Webhook 수신 데이터] {data}")  # 🔥 추가
+
+    if data is None:
+        print("[오류] Webhook 데이터 없음")
+        return jsonify({"status": "no data"}), 400
+
     action = data.get("action")
-    price = float(data.get("price"))
+    price = data.get("price")
+
+    if action is None or price is None:
+        print(f"[오류] Webhook 데이터 이상: action={action}, price={price}")
+        return jsonify({"status": "bad data"}), 400
+
+    try:
+        price = float(price)
+    except Exception as e:
+        print(f"[오류] price 변환 실패: {e}")
+        return jsonify({"status": "bad price format"}), 400
+
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     open_positions = [p for p in positions if p.get("status") == "open"]
 
-    if action in ["short", "long"]:
-        if len(open_positions) >= MAX_POSITIONS:
-            print(f"[{now}] 최대 포지션 초과로 진입 무시: {action.upper()} at {price}")
-            return jsonify({"status": "max positions reached"}), 200
+    if len(open_positions) >= MAX_POSITIONS:
+        print(f"[{now}] 최대 포지션 초과로 진입 무시: {action.upper()} at {price}")
+        return jsonify({"status": "max positions reached"}), 200
 
-        amount = INITIAL_BALANCE * POSITION_RATIO
+    amount = INITIAL_BALANCE * POSITION_RATIO
 
-        positions.append({
-            "entry_time": now,
-            "entry_price": price,
-            "amount": amount,
-            "direction": action,
-            "entry_bar_index": get_current_bar_index(),
-            "max_profit_ratio": 0,
-            "status": "open"
-        })
-        save_positions(positions)
-        print(f"[{now}] {action.upper()} 진입 수신: {price} (진입금액: {amount} USDT)")
+    positions.append({
+        "entry_time": now,
+        "entry_price": price,
+        "amount": amount,
+        "direction": action,
+        "entry_bar_index": get_current_bar_index(),
+        "max_profit_ratio": 0,
+        "status": "open"
+    })
+    save_positions(positions)
+    print(f"[{now}] {action.upper()} 진입 기록 완료: {price} (진입금액: {amount} USDT)")
 
     return jsonify({"status": "ok"}), 200
 
@@ -167,7 +184,7 @@ def monitor_market():
                             "result": result
                         }
 
-                        print(f"[{exit_time}] {direction.upper()} 포지션 청산: {close_price}, 수익: {round(net, 2)} USDT")
+                        print(f"[{exit_time}] {direction.upper()} 포지션 청산 완료: {close_price}, 수익: {round(net, 2)} USDT")
 
                         df = pd.DataFrame([trade])
                         if not os.path.exists(LOG_PATH):
@@ -209,5 +226,4 @@ atexit.register(backup_on_exit)
 # === 서버 실행 ===
 if __name__ == "__main__":
     threading.Thread(target=monitor_market, daemon=True).start()
-    port = int(os.environ.get("PORT", 8080))  # Render가 지정하는 PORT 환경변수 사용
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=10000)
