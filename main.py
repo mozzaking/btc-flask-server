@@ -235,4 +235,4 @@ signal.signal(signal.SIGINT, handle_exit_signal)
 # === 서버 실행 (gunicorn용) ===
 if __name__ == "__main__":
     threading.Thread(target=monitor_market, daemon=True).start()
-    app.run(host="0.0.0.0", port=8080)
+    app.run(host="0.0.0.0", port=80) 
