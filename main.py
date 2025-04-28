@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Flask 서버 코드 - Google Cloud 버전
 
 from flask import Flask, request, jsonify
