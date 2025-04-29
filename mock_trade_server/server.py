@@ -18,8 +18,12 @@ with open(csv_file, 'w', newline='') as f:
     writer.writerow(["Entry Time", "Exit Time", "Entry Price", "Exit Price", "Position Size", "Profit %", "Balance"])
 
 @app.route('/webhook', methods=['POST'])
+
 def webhook():
-    global balance, position
+    global balance,position
+    
+    print("[DEBUG] Webhook endpoint triggered")
+
 
     # === JSON 파싱 처리 보완 ===
     try:
