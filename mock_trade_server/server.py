@@ -21,7 +21,17 @@ with open(csv_file, 'w', newline='') as f:
 def webhook():
     global balance, position
 
-    data = request.get_json()
+    # === JSON 파싱 처리 보완 ===
+    try:
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = json.loads(request.data.decode('utf-8'))
+    except Exception as e:
+        print(f"[오류] JSON 파싱 실패: {e}")
+        return 'Invalid JSON', 415
+
+    print(f"[수신 데이터] {data}")
 
     signal = data.get('signal')
     price = float(data.get('price'))
@@ -39,7 +49,7 @@ def webhook():
             }
 
             print(f"[진입] {time} | 가격: {price:.2f} | 포지션 크기: {position_size:.2f} USDT (수수료 포함)")
-    
+
     elif signal in ['EXIT_SIGNAL', 'TRAIL_EXIT_SIGNAL']:
         if position is not None:
             exit_price = price * (1 - fee_rate)  # 매도 시 수수료 반영
@@ -57,6 +67,7 @@ def webhook():
             position = None
 
     return 'ok', 200
+
 
 def save_trade(entry_time, exit_time, entry_price, exit_price, size, profit_ratio, balance):
     with open(csv_file, 'a', newline='') as f:
