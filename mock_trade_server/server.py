@@ -23,7 +23,7 @@ with open(csv_file, 'w', newline='') as f:
 def webhook():
     global balance,position
     
-    print("[DEBUG] Webhook endpoint triggered")
+    print("[DEBUG] Webhook endpoint triggered", flush=True)
 
 
     # === JSON 파싱 처리 보완 ===
@@ -33,10 +33,10 @@ def webhook():
         else:
             data = json.loads(request.data.decode('utf-8'))
     except Exception as e:
-        print(f"[오류] JSON 파싱 실패: {e}")
+        print(f"[오류] JSON 파싱 실패: {e}", flush=True)
         return 'Invalid JSON', 415
 
-    print(f"[수신 데이터] {data}")
+    print(f"[수신 데이터] {data}", flush=True)
 
     signal = data.get('signal')
     price = float(data.get('price'))
@@ -53,7 +53,7 @@ def webhook():
                 'size': position_size
             }
 
-            print(f"[진입] {time} | 가격: {price:.2f} | 포지션 크기: {position_size:.2f} USDT (수수료 포함)")
+            print(f"[진입] {time} | 가격: {price:.2f} | 포지션 크기: {position_size:.2f} USDT (수수료 포함)", flush=True)
 
     elif signal in ['EXIT_SIGNAL', 'TRAIL_EXIT_SIGNAL']:
         if position is not None:
@@ -65,7 +65,7 @@ def webhook():
             profit_amount = size * profit_ratio
             balance += profit_amount
 
-            print(f"[청산] {time} | 가격: {price:.2f} | 수익률: {profit_ratio*100:.2f}% | 수익: {profit_amount:.2f} USDT | 잔고: {balance:.2f} USDT")
+            print(f"[청산] {time} | 가격: {price:.2f} | 수익률: {profit_ratio*100:.2f}% | 수익: {profit_amount:.2f} USDT | 잔고: {balance:.2f} USDT", flush=True)
 
             save_trade(position['entry_time'], time, entry_price, exit_price, size, profit_ratio, balance)
 
