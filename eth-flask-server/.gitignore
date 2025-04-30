@@ -1,0 +1,18 @@
+# Python 관련 캐시 파일
+__pycache__/
+*.pyc
+
+# 가상 환경 폴더
+venv/
+
+# 서버 로그
+server.log
+
+# CSV 거래 로그 파일 (추적 불필요)
+mock_trade_server/*.csv
+
+# 백업 로그 폴더 (자동 생성됨)
+mock_trade_server/backup_logs/
+
+# 기타 임시 파일
+*.log
