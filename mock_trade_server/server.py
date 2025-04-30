@@ -18,7 +18,7 @@ with open(csv_file, 'w', newline='') as f:
     writer = csv.writer(f)
     writer.writerow(["Entry Time", "Exit Time", "Entry Price", "Exit Price", "Position Size", "Profit %", "Balance"])
 
-@app.route('/webhook', methods=['POST'])
+@app.route('/btc/webhook', methods=['POST'])
 
 def webhook():
     global balance,position

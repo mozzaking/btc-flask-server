@@ -28,7 +28,7 @@ def parse_kst_timestamp(iso_time):
         print(f"[오류] 시간 파싱 실패: {e}", flush=True)
         return iso_time
 
-@app.route('/webhook', methods=['POST'])
+@app.route('/eth/webhook', methods=['POST'])
 def webhook():
     global balance, position
 
