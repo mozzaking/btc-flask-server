@@ -2,6 +2,7 @@ from flask import Flask, request
 import csv
 from datetime import datetime, timedelta
 import pytz
+import json
 
 app = Flask(__name__)
 
@@ -31,10 +32,25 @@ def parse_kst_timestamp(iso_time):
 def webhook():
     global balance, position
 
-    data = request.get_json()
+    try:
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = json.loads(request.data.decode("utf-8"))
+    except Exception as e:
+        print(f"[오류] JSON 파싱 실패: {e}")
+        return 'Invalid JSON', 415
+
+    print(f"[수신 데이터] {data}")
+
     signal = data.get("signal")
-    price = float(data.get("price"))
-    time_raw = data.get("time")
+    try:
+        price = float(data.get("price"))
+    except Exception as e:
+        print(f"[오류] price 변환 실패: {e}")
+        return 'Invalid price format', 400
+
+    time_raw = data.get("time", "")
     kst_time = parse_kst_timestamp(time_raw)
 
     print(f"[수신] {kst_time} | {signal} | 가격: {price:.2f}")
@@ -44,7 +60,6 @@ def webhook():
         direction = "long" if signal == "LONG_SIGNAL" else "short"
 
         if position is not None:
-            # 기존 포지션 종료
             exit_price = price * (1 - fee_rate if position['direction'] == 'long' else 1 + fee_rate)
             entry_price = position['entry_price']
             size = position['size']
