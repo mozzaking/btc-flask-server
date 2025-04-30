@@ -80,4 +80,4 @@ def save_trade(entry_time, exit_time, entry_price, exit_price, size, profit_rati
         writer.writerow([entry_time, exit_time, f"{entry_price:.2f}", f"{exit_price:.2f}", f"{size:.2f}", f"{profit_ratio*100:.2f}", f"{balance:.2f}"])
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=80)
+    app.run(host='0.0.0.0', port=5000)
