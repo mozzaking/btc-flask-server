@@ -1,6 +1,6 @@
 from flask import Flask, request
 import csv
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz
 import json
 
@@ -32,16 +32,16 @@ def parse_kst_timestamp(iso_time):
 def webhook():
     global balance, position
 
+    # 원본 요청 데이터 출력
+    print(f"[DEBUG] Raw request data: {request.data}")
+
     try:
-        if request.is_json:
-            data = request.get_json()
-        else:
-            data = json.loads(request.data.decode("utf-8"))
+        data = request.get_json(force=True)
     except Exception as e:
         print(f"[오류] JSON 파싱 실패: {e}")
-        return 'Invalid JSON', 415
+        return 'Invalid JSON', 400
 
-    print(f"[수신 데이터] {data}")
+    print(f"[DEBUG] Parsed JSON: {data}")
 
     signal = data.get("signal")
     try:
@@ -74,7 +74,6 @@ def webhook():
             save_trade(position['entry_time'], kst_time, position['direction'].upper(),
                        entry_price, exit_price, size, gross_profit, fee_usdt, net_profit, balance)
 
-        # 새로운 포지션 진입
         entry_price = price * (1 + fee_rate if direction == 'long' else 1 - fee_rate)
         size = balance * invest_ratio
         position = {
