@@ -32,30 +32,32 @@ def parse_kst_timestamp(iso_time):
 def webhook():
     global balance, position
 
-    # 원본 요청 데이터 출력
-    print(f"[DEBUG] Raw request data: {request.data}")
+    print(f"[DEBUG] Webhook endpoint triggered")
 
     try:
         data = request.get_json(force=True)
+        print(f"[수신 데이터] {data}")
     except Exception as e:
         print(f"[오류] JSON 파싱 실패: {e}")
-        return 'Invalid JSON', 400
-
-    print(f"[DEBUG] Parsed JSON: {data}")
+        return 'Invalid JSON', 415
 
     signal = data.get("signal")
+    price_raw = data.get("price")
+    time_raw = data.get("time")
+
+    if not signal or not price_raw or not time_raw:
+        print(f"[오류] 필드 누락 - signal: {signal}, price: {price_raw}, time: {time_raw}")
+        return 'Missing required fields', 400
+
     try:
-        price = float(data.get("price"))
+        price = float(price_raw)
     except Exception as e:
         print(f"[오류] price 변환 실패: {e}")
         return 'Invalid price format', 400
 
-    time_raw = data.get("time", "")
     kst_time = parse_kst_timestamp(time_raw)
-
     print(f"[수신] {kst_time} | {signal} | 가격: {price:.2f}")
 
-    # 롱/숏 진입
     if signal in ['LONG_SIGNAL', 'SHORT_SIGNAL']:
         direction = "long" if signal == "LONG_SIGNAL" else "short"
 
