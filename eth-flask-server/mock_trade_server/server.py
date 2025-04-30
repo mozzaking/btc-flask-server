@@ -25,20 +25,20 @@ def parse_kst_timestamp(iso_time):
         kst_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(pytz.timezone('Asia/Seoul'))
         return kst_dt.strftime("%Y-%m-%d %H:%M:%S")
     except Exception as e:
-        print(f"[오류] 시간 파싱 실패: {e}")
+        print(f"[오류] 시간 파싱 실패: {e}", flush=True)
         return iso_time
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
     global balance, position
 
-    print(f"[DEBUG] Webhook endpoint triggered")
+    print(f"[DEBUG] Webhook endpoint triggered", flush=True)
 
     try:
         data = request.get_json(force=True)
-        print(f"[수신 데이터] {data}")
+        print(f"[수신 데이터] {data}", flush=True)
     except Exception as e:
-        print(f"[오류] JSON 파싱 실패: {e}")
+        print(f"[오류] JSON 파싱 실패: {e}", flush=True)
         return 'Invalid JSON', 415
 
     signal = data.get("signal")
@@ -46,17 +46,17 @@ def webhook():
     time_raw = data.get("time")
 
     if not signal or not price_raw or not time_raw:
-        print(f"[오류] 필드 누락 - signal: {signal}, price: {price_raw}, time: {time_raw}")
+        print(f"[오류] 필드 누락 - signal: {signal}, price: {price_raw}, time: {time_raw}", flush=True)
         return 'Missing required fields', 400
 
     try:
         price = float(price_raw)
     except Exception as e:
-        print(f"[오류] price 변환 실패: {e}")
+        print(f"[오류] price 변환 실패: {e}", flush=True)
         return 'Invalid price format', 400
 
     kst_time = parse_kst_timestamp(time_raw)
-    print(f"[수신] {kst_time} | {signal} | 가격: {price:.2f}")
+    print(f"[수신] {kst_time} | {signal} | 가격: {price:.2f}", flush=True)
 
     if signal in ['LONG_SIGNAL', 'SHORT_SIGNAL']:
         direction = "long" if signal == "LONG_SIGNAL" else "short"
@@ -71,7 +71,7 @@ def webhook():
             net_profit = gross_profit - fee_usdt
             balance += net_profit
 
-            print(f"[청산] {kst_time} | 방향: {position['direction'].upper()} | 수익: {net_profit:.2f} USDT | 잔고: {balance:.2f} USDT")
+            print(f"[청산] {kst_time} | 방향: {position['direction'].upper()} | 수익: {net_profit:.2f} USDT | 잔고: {balance:.2f} USDT", flush=True)
 
             save_trade(position['entry_time'], kst_time, position['direction'].upper(),
                        entry_price, exit_price, size, gross_profit, fee_usdt, net_profit, balance)
@@ -85,7 +85,7 @@ def webhook():
             'direction': direction
         }
 
-        print(f"[진입] {kst_time} | 방향: {direction.upper()} | 가격: {price:.2f} | 포지션 크기: {size:.2f} USDT")
+        print(f"[진입] {kst_time} | 방향: {direction.upper()} | 가격: {price:.2f} | 포지션 크기: {size:.2f} USDT", flush=True)
 
     elif signal in ['EXIT_SIGNAL', 'TRAIL_EXIT_SIGNAL']:
         if position is not None:
@@ -98,7 +98,7 @@ def webhook():
             net_profit = gross_profit - fee_usdt
             balance += net_profit
 
-            print(f"[청산] {kst_time} | 방향: {position['direction'].upper()} | 수익: {net_profit:.2f} USDT | 잔고: {balance:.2f} USDT")
+            print(f"[청산] {kst_time} | 방향: {position['direction'].upper()} | 수익: {net_profit:.2f} USDT | 잔고: {balance:.2f} USDT", flush=True)
 
             save_trade(position['entry_time'], kst_time, position['direction'].upper(),
                        entry_price, exit_price, size, gross_profit, fee_usdt, net_profit, balance)
