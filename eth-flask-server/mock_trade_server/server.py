@@ -98,4 +98,4 @@ def save_trade(entry_time, exit_time, direction, entry_price, exit_price, size, 
                          f"{profit:.2f}", f"{fee:.2f}", f"{net:.2f}", f"{balance:.2f}"])
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=80)
+    app.run(host='0.0.0.0', port=8080)
